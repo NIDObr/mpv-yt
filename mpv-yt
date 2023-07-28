@@ -1,0 +1,28 @@
+#!/bin/bash
+
+file_selection(){
+	file_list=$(zenity --file-selection --multiple  --separator='\n' --file-filter="*.avi *.mkv *.mp4")
+	printf "${file_list}" > "${HOME}/.mpv_playlist"
+	mpv --playlist="${HOME}/.mpv_playlist"
+	rm "${HOME}/.mpv_playlist"
+	exit 0
+}
+
+[[ "${1}" == "--gui" ]] && {
+	url=$(zenity --title="mpv-yt 1.0" --extra-button="Local" --ok-label="Play" --entry --text="URL de video ou playlist do You Tube, ou url da Twitch" --entry-text="URL...")
+	[[ "${url}" == "Local" ]] && file_selection
+	echo $url
+} || {
+	url="${1}"
+}
+
+printf '%s\n' "${url}" | grep -Eq "(youtu|youtube)" && {
+	yt-dlp --list-formats "${url}" | grep -m1 -E "(mp4   1920x1080).*(avc1)" | awk -F' ' '{print $1}' |
+	xargs -IFORMAT mesa-dev mpv --cache-secs=99000000.000 --ytdl-format=251,FORMAT --ytdl-raw-options="downloader=aria2c buffer-size=500M" "${url}"
+	exit
+} || {
+	mesa-dev mpv --ytdl-format=1080p60__source_ --ytdl-raw-options="downloader=aria2c" "${url}"
+	exit
+}
+
+exit 0
