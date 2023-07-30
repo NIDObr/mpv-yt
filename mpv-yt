@@ -21,7 +21,7 @@ printf '%s\n' "${url}" | grep -Eq "(youtu|youtube)" && {
 	xargs -IFORMAT mesa-dev mpv --cache-secs=99000000.000 --ytdl-format=251,FORMAT --ytdl-raw-options="downloader=aria2c buffer-size=500M" "${url}"
 	exit
 } || {
-	mesa-dev mpv --ytdl-format=1080p60__source_ --ytdl-raw-options="downloader=aria2c" "${url}"
+	mesa-dev mpv --ytdl-raw-options="downloader=aria2c" "${url}"
 	exit
 }
 
