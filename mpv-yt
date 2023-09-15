@@ -3,7 +3,7 @@
 file_selection(){
 	file_list=$(zenity --file-selection --multiple  --separator='\n' --file-filter="*.avi *.mkv *.mp4")
 	printf "${file_list}" > "${HOME}/.mpv_playlist"
-	mpv --playlist="${HOME}/.mpv_playlist"
+	env mesa-dev mpv --playlist="${HOME}/.mpv_playlist"
 	rm "${HOME}/.mpv_playlist"
 	exit 0
 }
@@ -11,18 +11,28 @@ file_selection(){
 [[ "${1}" == "--gui" ]] && {
 	url=$(zenity --title="mpv-yt 1.0" --extra-button="Local" --ok-label="Play" --entry --text="URL de video ou playlist do You Tube, ou url da Twitch" --entry-text="URL...")
 	[[ "${url}" == "Local" ]] && file_selection
-	echo $url
+	printf "%s\n" "${url}"
 } || {
 	url="${1}"
 }
 
 printf '%s\n' "${url}" | grep -Eq "(youtu|youtube)" && {
-	yt-dlp --list-formats "${url}" | grep -m1 -E "(mp4   1920x1080).*(avc1)" | awk -F' ' '{print $1}' |
+	tmp_file=$(mktemp)
+	yt-dlp --list-formats "${url}" | grep -E "(1280x720|1920x1080|2560x1440|3840x2160).*(https).*(video)" > "${tmp_file}"
+	cat "${tmp_file}" | awk -F" " '{print $2" "$3" "$10}' | awk -F'.' '{print $1}'
+	res=$(zenity --title="mpv-yt 1.0" --width=300 --height=350 \
+	--list --text="Selecione uma resolução" \
+	--separator=').*(' --print-column=all \
+	--column=Formato --column=Resolução --column=Codec \
+	`cat "${tmp_file}" | awk -F" " '{print $2" "$3" "$10}' | awk -F'.' '{print $1}'`)
+	env grep -m1 -o -E "([0-9]*).*(${res})" "${tmp_file}" | awk -F' ' '{print $1}' |	
 	xargs -IFORMAT mesa-dev mpv --cache-secs=99000000.000 --ytdl-format=251,FORMAT --ytdl-raw-options="downloader=aria2c buffer-size=500M" "${url}"
-	exit
+	rm "${tmp_file}"
+	exit 0
 } || {
-	mesa-dev mpv --ytdl-raw-options="downloader=aria2c" "${url}"
-	exit
+	env mesa-dev mpv --cache-secs=99000000.000 --ytdl-raw-options="downloader=aria2c" "${url}"
+	# --ytdl-format=1080p60__source_
+	exit 0
 }
 
 exit 0
