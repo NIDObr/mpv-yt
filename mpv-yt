@@ -10,7 +10,9 @@ file_selection(){
 
 [[ "${1}" == "--gui" ]] && {
 	url=$(zenity --title="mpv-yt 1.0" --extra-button="Local" --ok-label="Play" --entry --text="URL de video ou playlist do You Tube, ou url da Twitch" --entry-text="URL...")
+	[[ $? -ne 0 ]] && exit 1
 	[[ "${url}" == "Local" ]] && file_selection
+	printf '%s\n' "${url}"
 } || {
 	url="${1}"
 }
@@ -24,6 +26,7 @@ printf '%s\n' "${url}" | grep -Eq "(youtu|youtube)" && {
 	--separator=').*(' --print-column=all \
 	--column=Formato --column=Resolução --column=Codec \
 	`cat "${tmp_file}" | awk -F" " '{print $2" "$3" "$10}' | awk -F'.' '{print $1}' | sort`)
+	[[ $? -ne 0 ]] && exit 1
 	# Define a resolução padrão
 	[[ -z "${res}" ]] && res='mp4).*(1920x1080).*(avc1'
 	# Reprodus na resolução desejada, usando a aria2x com downloader pro yt-dlp
