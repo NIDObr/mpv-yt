@@ -17,7 +17,6 @@ play_media(){
 [[ -z ${1} ]] && {
 	url=$(zenity --title="mpv-yt 2.0" --extra-button="Local" --ok-label="Play" --entry --text="URL de video ou playlist do You Tube, ou url da Twitch" --entry-text="URL...")
 	[[ "${url}" == "Local" ]] && file_selection
-	exit 0
 } && {
 	url="${1}"
 }
