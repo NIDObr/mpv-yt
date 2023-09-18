@@ -7,37 +7,51 @@ file_selection(){
 	rm "${HOME}/.mpv_playlist"
 	exit 0
 }
+# Reproduz a resolução desejado
+play_media(){
+	printf "${media_id}" |	
+	xargs -IFORMAT mesa-dev mpv --cache-secs=99000000.000 --ytdl-format=FORMAT --ytdl-raw-options="downloader=aria2c buffer-size=500M" "${url}"
+}
 
-[[ "${1}" == "--gui" ]] && {
-	url=$(zenity --title="mpv-yt 1.0" --extra-button="Local" --ok-label="Play" --entry --text="URL de video ou playlist do You Tube, ou url da Twitch" --entry-text="URL...")
+[[ -z ${1} ]] && {
+	url=$(zenity --title="mpv-yt 2.0" --extra-button="Local" --ok-label="Play" --entry --text="URL de video ou playlist do You Tube, ou url da Twitch" --entry-text="URL...")
 	[[ $? -ne 0 ]] && exit 1
 	[[ "${url}" == "Local" ]] && file_selection
-	printf '%s\n' "${url}"
-} || {
+} && {
 	url="${1}"
 }
 
-printf '%s\n' "${url}" | grep -Eq "(youtu|youtube)" && {
-	tmp_file=$(mktemp)
-	yt-dlp --list-formats "${url}" | grep -E "(1280x720|1920x1080|2560x1440|3840x2160).*(https).*(video)" > "${tmp_file}"
-	# Exibe as resoluções disponiveins (>= 720p)
-	res=$(zenity --title="mpv-yt 1.0" --width=300 --height=350 \
-	--list --text="Selecione uma resolução" \
-	--separator=').*(' --print-column=all \
-	--column=Formato --column=Resolução --column=Codec \
-	`cat "${tmp_file}" | awk -F" " '{print $2" "$3" "$10}' | awk -F'.' '{print $1}' | sort`)
-	[[ $? -ne 0 ]] && exit 1
-	# Define a resolução padrão
-	[[ -z "${res}" ]] && res='mp4).*(1920x1080).*(avc1'
-	# Reprodus na resolução desejada, usando a aria2x com downloader pro yt-dlp
-	env grep -m1 -o -E "([0-9]*).*(${res})" "${tmp_file}" | awk -F' ' '{print $1}' |	
-	xargs -IFORMAT mesa-dev mpv --cache-secs=99000000.000 --ytdl-format=251,FORMAT --ytdl-raw-options="downloader=aria2c buffer-size=500M" "${url}"
-	rm "${tmp_file}"
-	exit 0
-} || {
-	env mesa-dev mpv --cache-secs=99000000.000 --ytdl-raw-options="downloader=aria2c" "${url}"
-	# --ytdl-format=1080p60__source_
-	exit 0
-}
+#Verificao o provedor do link
+case "${url}" in
+	$(awk '{a=0}/https.*youtu.*/{a=1}a' <<<${url}))
+		tmp_file_yt=$(mktemp)
+		yt-dlp --list-formats "${url}" |
+		grep -E "(640x360|854x480|1280x720|1920x1080|2560x1440|3840x2160).*((https.*video)|(m3u8.*Premium))" >> "${tmp_file_yt}"
+		# Exibe as resoluções disponiveins
+		res=$(zenity --title="mpv-yt 2.0" --width=500 --height=400 \
+		--list --text="Selecione uma resolução" \
+		--separator=').*(' --print-column=all \
+		--column=Formato --column=Resolução --column=Protocolo --column=Codec --column=Nome \
+		`cat ${tmp_file_yt} | sed -r 's/( ~)//g' | awk -F' ' '{print $2" "$3" "$8" "$10" "$14}' | sed -r 's/(\..*\ |\,)/ /g'`)
+		media_id="251,$(env cat ${tmp_file_yt} | grep -E "(${res})" | awk -F' ' '{print $1}')"
+		play_media
+		rm "${tmp_file_yt}"
+	;;
+	$(awk '{a=0}/https.*twitch.*/{a=1}a' <<<${url}))
+		tmp_file_tw=$(mktemp)
+		yt-dlp --list-formats "${url}" | grep "mp4" >> "${tmp_file_tw}"
+		# Exibe as resoluções disponiveins
+		res=$(zenity --title="mpv-yt 2.0" --width=400 --height=300 \
+		--list --text="Selecione uma resolução" \
+		--separator=').*(' --print-column=all \
+		--column=Formato --column=Resolução --column=Protocolo --column=Codec \
+		`cat ${tmp_file_tw} | awk -F' ' '{print " "$2" "$3" "$7" "$9}' | sed -r 's/\..*//g'`)
+		media_id=$(env cat ${tmp_file_tw} | grep -E "(${res})" | awk -F' ' '{print $1}')
+		play_media
+		rm "${tmp_file_tw}"
+	;;
+	*)
+		mesa-dev mpv --cache-secs=99000000.000 --ytdl-raw-options="downloader=aria2c buffer-size=500M" "${url}"
+	;;
+esac
 
-exit 0
