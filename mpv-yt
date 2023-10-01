@@ -1,6 +1,7 @@
 #!/bin/bash
 
 file_selection(){
+
 	file_list=$(zenity --file-selection --multiple  --separator='\n' --file-filter="*.avi *.mkv *.mp4")
 	[[ $? -ne 0 ]] && exit 1
 	printf "${file_list}" > "${HOME}/.mpv_playlist"
@@ -12,8 +13,8 @@ file_selection(){
 play_media(){
 	[[ -z ${res} ]] && res="1920x1080"
 	media_id=$(env cat ${tmp_file} | grep -m1 -E "(${res})" | awk -F' ' '{print $1}')
-	printf "${media_id}" |	
-	xargs -IFORMAT mesa-dev mpv --cache-secs=99000000.000 --ytdl-format=${yt_audio}FORMAT --ytdl-raw-options="downloader=aria2c buffer-size=500M" "${url}"
+	printf "${media_id}" |
+	xargs -IFORMAT mesa-dev mpv --cache-secs=99000000.000 --ytdl-format=${yt_audio}FORMAT --ytdl-raw-options=downloader=aria2c,external-downloader-args='-c -j 5 -x 5 -s 5 -k 1M'${cookies} "${url}"
 	rm "${tmp_file}"
 }
 
@@ -23,6 +24,8 @@ url=$(zenity --title="mpv-yt 2.0" --extra-button="Local" --ok-label="Play" --ent
 [[ "${url}" == "URL..." ]] && exit 0
 #Verificao o provedor do link
 tmp_file=$(mktemp)
+cookies=''
+
 case "${url}" in
 	$(awk '{a=0}/https.*youtu.*/{a=1}a' <<<${url}))
 		yt-dlp --list-formats "${url}" |
@@ -32,7 +35,7 @@ case "${url}" in
 		--list --text="Selecione uma resolução" \
 		--separator=').*(' --print-column=all \
 		--column=Formato --column=Resolução --column=Protocolo --column=Codec --column=Nome \
-		`cat ${tmp_file} | sed -r 's/( ~)//g' | awk -F' ' '{print $2" "$3" "$8" "$10" "$14}' | sed -r 's/(\..*\ |\,)/ /g'`)
+		`cat ${tmp_file} | sed -r 's/( ~)/ /g' | awk -F' ' '{print $2" "$3" "$8" "$10" "$14}' | sed -r 's/(\..*\ |\,)/ /g'`)
 		[[ $? -ne 0 ]] && exit 1
 		yt_audio="251,"
 		play_media
@@ -46,6 +49,7 @@ case "${url}" in
 		--column=Formato --column=Resolução --column=Protocolo --column=Codec \
 		`cat ${tmp_file} | awk -F' ' '{print " "$2" "$3" "$7" "$9}' | sed -r 's/\..*//g'`)
 		[[ $? -ne 0 ]] && exit 1
+		cookies=',cookies-from-browser=firefox'
 		play_media
 	;;
 	*)
