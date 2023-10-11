@@ -28,6 +28,7 @@ cookies=''
 
 case "${url}" in
 	$(awk '{a=0}/https.*youtu.*/{a=1}a' <<<${url}))
+		echo 1
 		yt-dlp --list-formats "${url}" |
 		grep -E "(640x360|854x480|1280x720|1920x1080|2560x1440|3840x2160).*((https.*video)|(m3u8.*Premium))" >> "${tmp_file}"
 		# Exibe as resoluções disponiveins
@@ -40,19 +41,25 @@ case "${url}" in
 		yt_audio="251,"
 		play_media
 	;;
-	$(awk '{a=0}/https.*twitch.*/{a=1}a' <<<${url}))
-		yt-dlp --list-formats "${url}" | grep "mp4" >> "${tmp_file}"
+	$(awk '{a=0}/https.*twitch.tv.*/{a=1}a' <<<${url}))
+		yt-dlp --cookies-from-browser firefox --list-formats "${url}" | grep "avc1" | sed -r 's/\~/ /g' >> "${tmp_file}"
+		$(awk '{a=0}/https.*twitch.tv\/videos.*/{a=1}a' <<<${url}) && {
+			tw_list=$(cat ${tmp_file} | awk -F' ' '{print " "$2" "$3" "$7" "$9}' | sed -r 's/\..*//g')
+		} || {
+			tw_list=$(cat ${tmp_file} | awk -F' ' '{print " "$2" "$3" "$8" "$10}' | sed -r 's/\..*//g')
+		}
 		# Exibe as resoluções disponiveins
 		res=$(zenity --title="mpv-yt 2.0" --width=400 --height=300 \
 		--list --text="Selecione uma resolução" \
 		--separator=').*(' --print-column=all \
 		--column=Formato --column=Resolução --column=Protocolo --column=Codec \
-		`cat ${tmp_file} | awk -F' ' '{print " "$2" "$3" "$7" "$9}' | sed -r 's/\..*//g'`)
+		`echo ${tw_list}`)
 		[[ $? -ne 0 ]] && exit 1
 		cookies=',cookies-from-browser=firefox'
 		play_media
 	;;
 	*)
+		echo 3
 		mesa-dev mpv --cache-secs=99000000.000 --ytdl-raw-options="downloader=aria2c buffer-size=500M" "${url}"
 	;;
 esac
