@@ -5,7 +5,7 @@ file_selection(){
 	file_list=$(zenity --file-selection --multiple  --separator='\n' --file-filter="*.avi *.mkv *.mp4")
 	[[ $? -ne 0 ]] && exit 1
 	printf "${file_list}" > "${HOME}/.mpv_playlist"
-	env mesa-dev mpv --playlist="${HOME}/.mpv_playlist"
+	env mpv --playlist="${HOME}/.mpv_playlist"
 	rm "${HOME}/.mpv_playlist"
 	exit 0
 }
@@ -14,7 +14,7 @@ play_media(){
 	[[ -z ${res} ]] && res="1920x1080"
 	media_id=$(env cat ${tmp_file} | grep -m1 -E "(${res})" | awk -F' ' '{print $1}')
 	printf "${media_id}" |
-	xargs -IFORMAT mesa-dev mpv --cache-secs=99000000.000 --ytdl-format=${yt_audio}FORMAT --ytdl-raw-options=downloader=aria2c,external-downloader-args='-c -j 5 -x 5 -s 5 -k 1M'${cookies} "${url}"
+	xargs -IFORMAT mpv --cache-secs=99000000.000 --ytdl-format=${yt_audio}FORMAT --ytdl-raw-options=downloader=aria2c,external-downloader-args='-c -j 5 -x 5 -s 5 -k 1M'${cookies} "${url}"
 	rm "${tmp_file}"
 }
 
@@ -28,7 +28,6 @@ cookies=''
 
 case "${url}" in
 	$(awk '{a=0}/https.*youtu.*/{a=1}a' <<<${url}))
-		echo 1
 		yt-dlp --list-formats "${url}" |
 		grep -E "(640x360|854x480|1280x720|1920x1080|2560x1440|3840x2160).*((https.*video)|(m3u8.*Premium))" >> "${tmp_file}"
 		# Exibe as resoluções disponiveins
@@ -59,8 +58,7 @@ case "${url}" in
 		play_media
 	;;
 	*)
-		echo 3
-		mesa-dev mpv --cache-secs=99000000.000 --ytdl-raw-options="downloader=aria2c buffer-size=500M" "${url}"
+		mpv --cache-secs=99000000.000 --ytdl-raw-options="downloader=aria2c buffer-size=500M" "${url}"
 	;;
 esac
 
