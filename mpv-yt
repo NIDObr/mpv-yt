@@ -2,10 +2,10 @@
 
 file_selection(){
 
-	file_list=$(zenity --file-selection --multiple  --separator='\n' --file-filter="*.avi *.mkv *.mp4")
+	file_list=$(zenity --file-selection --multiple  --separator='\n' --file-filter="*.avi *.mkv *.mp4 *.webm")
 	[[ $? -ne 0 ]] && exit 1
 	printf "${file_list}" > "${HOME}/.mpv_playlist"
-	env mpv --playlist="${HOME}/.mpv_playlist"
+	env mesa-24.1.0-dev mpv --playlist="${HOME}/.mpv_playlist"
 	rm "${HOME}/.mpv_playlist"
 	exit 0
 }
@@ -14,7 +14,7 @@ play_media(){
 	[[ -z ${res} ]] && res="1920x1080"
 	media_id=$(env cat ${tmp_file} | grep -m1 -E "(${res})" | awk -F' ' '{print $1}')
 	printf "${media_id}" |
-	xargs -IFORMAT mpv --cache-secs=99000000.000 --ytdl-format=${yt_audio}FORMAT --ytdl-raw-options=downloader=aria2c,external-downloader-args='-c -j 5 -x 5 -s 5 -k 1M'${cookies} "${url}"
+	xargs -IFORMAT mesa-24.1.0-dev mpv --cache-secs=99000000.000 --ytdl-format=${yt_audio}FORMAT --ytdl-raw-options=downloader=aria2c,external-downloader-args='-c -j 5 -x 5 -s 5 -k 1M'${cookies} "${url}"
 	rm "${tmp_file}"
 }
 
@@ -58,7 +58,14 @@ case "${url}" in
 		play_media
 	;;
 	*)
-		mpv --cache-secs=99000000.000 --ytdl-raw-options="downloader=aria2c buffer-size=500M" "${url}"
+		yt-dlp --cookies-from-browser firefox --list-formats "${url}" >> "${tmp_file}"
+		vid_list=$(cat ${tmp_file} | grep avc | awk -F' ' '{print " "$2" "$3" "$6" "$8}' | sed -r 's/\..*//g')
+		res=$(zenity --title="mpv-yt 2.0" --width=400 --height=300 \
+		--list --text="Selecione uma resolução" \
+		--separator=').*(' --print-column=all \
+		--column=Formato --column=Resolução --column=Protocolo --column=Codec \
+		`echo ${vid_list}`)
+		play_media
 	;;
 esac
 
